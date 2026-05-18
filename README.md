@@ -2,15 +2,7 @@
 
 A local ML paper explorer and research assistant. Ingests papers from arXiv, bioRxiv, OpenReview, Semantic Scholar, Wikipedia, and arbitrary web pages; stores them in SQLite + ChromaDB; exposes everything through a FastAPI backend + React SPA. An agentic chat loop (OpenAI Agents SDK) lets you query the corpus with ~22 tools.
 
----
-
-## Screenshots
-
-![Paper reader](assets/screenshots/meridian_paper.png)
-
-![Citation & semantic graph](assets/screenshots/meridian_graph.png)
-
-![Agent chat](assets/screenshots/meridian_agent.png)
+![Paper reader with structured summary and entity panel](assets/screenshots/meridian_paper.png)
 
 ---
 
@@ -146,6 +138,12 @@ ml_research_station/
 The chat agent has ~22 tools including: `search_papers`, `semantic_search`, `get_paper`, `summarize_paper`, `ocr_paper`, `rag_query`, `graph_traverse`, `get_entities`, `extract_entities`, `ingest_wikipedia_article`, `ingest_webpage`, `ingest_papers`, `execute_python`, `create_dashboard`, `add_note`, and more.
 
 The agent system prompt and all skill files in `prompts/skills/` are reloaded from disk on every request — edit them without restarting the server.
+
+![Agent chat with tool calls and streaming response](assets/screenshots/meridian_agent.png)
+
+The citation and semantic graph visualises relationships between papers and highlights traversal paths explored by the agent.
+
+![Citation and semantic graph](assets/screenshots/meridian_graph.png)
 
 ---
 
