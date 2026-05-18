@@ -48,12 +48,25 @@ class _FirstToolCallStream(httpx.AsyncByteStream):
             return line
         try:
             data = json.loads(payload)
+            modified = False
             for choice in data.get("choices", []):
                 delta = choice.get("delta", {})
                 tcs = delta.get("tool_calls")
-                if tcs and len(tcs) > 1:
-                    delta["tool_calls"] = [tc for tc in tcs if tc.get("index", 0) == 0]
-            return b"data: " + json.dumps(data).encode()
+                if not tcs:
+                    continue
+                # DeepSeek streams parallel tool calls as separate chunks, each
+                # containing exactly ONE item with its index. Filtering by
+                # len(tcs) > 1 never fires. Filter by index > 0 instead.
+                filtered = [tc for tc in tcs if tc.get("index", 0) == 0]
+                if len(filtered) != len(tcs):
+                    if filtered:
+                        delta["tool_calls"] = filtered
+                    else:
+                        del delta["tool_calls"]
+                    modified = True
+            # Only re-encode when we actually changed something; return the
+            # original bytes otherwise so we never corrupt chunks needlessly.
+            return (b"data: " + json.dumps(data).encode()) if modified else line
         except Exception:
             return line
 
@@ -217,7 +230,7 @@ def _build_provider(settings):
         from openai import AsyncOpenAI
 
         _transport = _SingleToolCallTransport(httpx.AsyncHTTPTransport())
-        _http = httpx.AsyncClient(transport=_transport, base_url=base_url)
+        _http = httpx.AsyncClient(transport=_transport)
         _oai = AsyncOpenAI(api_key=api_key, base_url=base_url, http_client=_http)
         return OpenAIProvider(openai_client=_oai, use_responses=False)
 
@@ -315,6 +328,10 @@ def _build_orchestrator(system: str, settings, event_queue: asyncio.Queue):
 
     # ── Sub-agents (instructions loaded from prompts/agents/*.md) ─────────────
 
+    # parallel_tool_calls=False is applied to all agents — DeepSeek V4 ignores
+    # this hint from the API but the SSE interceptor enforces it at transport level.
+    _no_parallel = ModelSettings(parallel_tool_calls=False)
+
     processing_agent = Agent(
         name="Processing",
         instructions=_load_agent_instructions(
@@ -332,6 +349,7 @@ def _build_orchestrator(system: str, settings, event_queue: asyncio.Queue):
             function_tool(_i(extract_pdf_text, "Processing")),
         ],
         model=model,
+        model_settings=_no_parallel,
     )
 
     knowledge_agent = Agent(
@@ -354,6 +372,7 @@ def _build_orchestrator(system: str, settings, event_queue: asyncio.Queue):
             function_tool(_i(ingest_webpage, "Knowledge")),
         ],
         model=model,
+        model_settings=_no_parallel,
     )
 
     analysis_agent = Agent(
@@ -374,14 +393,10 @@ def _build_orchestrator(system: str, settings, event_queue: asyncio.Queue):
             function_tool(_i(list_workspace, "Analysis")),
         ],
         model=model,
+        model_settings=_no_parallel,
     )
 
     # ── Orchestrator — direct tools + sub-agent delegation ────────────────────
-
-    # parallel_tool_calls=False forces one tool call per turn.
-    # Local models (Ollama/vLLM) often return parallel calls with mismatched or
-    # empty IDs, which causes the API to reject the next turn with a 400 error.
-    _no_parallel = ModelSettings(parallel_tool_calls=False)
 
     return Agent(
         name="Meridian",
