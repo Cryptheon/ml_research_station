@@ -4,6 +4,16 @@ A local ML paper explorer and research assistant. Ingests papers from arXiv, bio
 
 ---
 
+## Screenshots
+
+![Paper reader](assets/screenshots/meridian_paper.png)
+
+![Citation & semantic graph](assets/screenshots/meridian_graph.png)
+
+![Agent chat](assets/screenshots/meridian_agent.png)
+
+---
+
 ## Quick start
 
 ```bash
@@ -27,7 +37,9 @@ For frontend hot-reload during development, run `make frontend-dev` in a second 
 
 ## Configuration
 
-All settings live in `.env` and map to `src/research_station/config/settings.py` via Pydantic Settings. Nested keys use `__` as delimiter.
+Most settings can be changed directly inside the app via the **⚙ Settings** panel (LLM provider, model, base URL, temperature, OCR backend, embedding model, ingestion preferences, and more). Changes are written back to `.env` immediately — no restart needed.
+
+For first-time setup or secrets, edit `.env` directly. All settings map to `src/research_station/config/settings.py` via Pydantic Settings. Nested keys use `__` as delimiter.
 
 ```env
 # LLM backend (choose one)
